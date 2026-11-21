@@ -180,7 +180,3 @@ third_party/            miniaudio (single header)
 suave reacts to sound that is already playing, so the first ~0.2–0.4 s of a sudden
 explosion still gets through before the volume drops. Removing that would require
 processing the audio *inside* the playback path with look-ahead (a real compressor).
-
-## License
-
-Not decided yet. miniaudio is public domain / MIT-0.

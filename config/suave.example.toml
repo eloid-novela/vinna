@@ -1,0 +1,47 @@
+# suave configuration example.
+#
+# Copy to:
+#   Linux:   ~/.config/suave/suave.toml
+#   Windows: %APPDATA%\suave\suave.toml
+# Every option can also be passed on the command line (e.g. --threshold -22).
+
+# --- Detection ---------------------------------------------------------------
+
+# Loudness (LUFS) above which suave starts turning the volume down.
+# Lower = reacts earlier. Use `suave monitor` to see the values of your films.
+threshold = -20
+
+# How strongly loud passages are pulled back (1 = not at all, 10+ = almost a limiter).
+ratio = 4
+
+# Never go more than this many dB below the volume you set.
+max_cut = 20
+
+# How fast to turn down, how long to wait, how slowly to turn back up.
+attack = "150ms"
+hold = "1s"
+release = "3s"
+
+# Below this the film is considered silent and the volume is left as it is.
+gate = -55
+
+# --- Target ------------------------------------------------------------------
+
+# auto | pulse (Linux) | wasapi (Windows) | vlc-http | none
+backend = "auto"
+app = "vlc"
+
+# Only needed for the vlc-http backend (setting a password makes "auto" use it).
+# vlc_host = "127.0.0.1"
+# vlc_port = 8080
+# vlc_password = "change-me"
+
+# Capture device (part of a name from `suave devices`). Empty = what is playing.
+# device = "Monitor of"
+
+# --- Advanced ----------------------------------------------------------------
+
+window = "400ms"
+tick = "50ms"
+latency = "120ms"
+min_step = 0.5

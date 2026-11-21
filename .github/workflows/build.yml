@@ -1,0 +1,39 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cmake:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: suave-${{ matrix.os }}
+          path: |
+            build/suave
+            build/Release/suave.exe
+
+  xmake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+      - name: Build
+        run: xmake -y
+      - name: Test
+        run: xmake build -y suave_tests && xmake run suave_tests

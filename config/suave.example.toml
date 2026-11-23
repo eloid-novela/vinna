@@ -9,7 +9,7 @@
 
 # Loudness (LUFS) above which suave starts turning the volume down.
 # Lower = reacts earlier. Use `suave monitor` to see the values of your films.
-threshold = -20
+threshold = -10
 
 # How strongly loud passages are pulled back (1 = not at all, 10+ = almost a limiter).
 ratio = 4

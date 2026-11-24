@@ -4,22 +4,23 @@
 #include <vector>
 
 #include "runner.hpp"
-#include "suave/config.hpp"
+#include "vinna/config.hpp"
 
-#ifndef SUAVE_VERSION
-#define SUAVE_VERSION "0.1.0"
+#ifndef VINNA_VERSION
+#define VINNA_VERSION "0.1.0"
 #endif
 
 namespace {
 
-const char* kUsage = R"(suave - keeps movie audio at a comfortable level
+const char* kUsage = R"(vinna - keeps movie audio at a comfortable level
 
 Usage:
-  suave run      [options]   Listen and turn the volume down when it gets loud
-  suave monitor  [options]   Show the loudness suave hears (changes nothing)
-  suave devices              List audio devices for --device
-  suave help                 Show this help
-  suave version              Show the version
+  vinna run      [options]   Listen and turn the volume down when it gets loud
+  vinna monitor  [options]   Show the loudness vinna hears (changes nothing)
+  vinna restore  [options]   Put back the volume if vinna was killed while it was lowered
+  vinna devices              List audio devices for --device
+  vinna help                 Show this help
+  vinna version              Show the version
 
 Detection:
   --threshold <LUFS>     Start reducing above this loudness        (default -20)
@@ -36,7 +37,7 @@ Target:
   --vlc-host <host>      VLC web interface host                    (default 127.0.0.1)
   --vlc-port <port>      VLC web interface port                    (default 8080)
   --vlc-password <pw>    VLC web interface password (enables vlc-http in auto)
-  --device <name>        Capture device (part of a name from `suave devices`)
+  --device <name>        Capture device (part of a name from `vinna devices`)
 
 Advanced:
   --window <time>        Loudness measurement window               (default 400ms)
@@ -51,7 +52,7 @@ Times accept ms, s or m (150ms, 3s). Options in the config file use the same
 names without dashes, e.g. `threshold = -22` or `release = "4s"`.
 Default config file: )";
 
-void print_usage() { std::printf("%s%s\n", kUsage, suave::default_config_path().c_str()); }
+void print_usage() { std::printf("%s%s\n", kUsage, vinna::default_config_path().c_str()); }
 
 bool file_exists(const std::string& path) {
     std::ifstream f(path);
@@ -75,18 +76,18 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (command == "version" || command == "--version" || command == "-V") {
-        std::printf("suave %s\n", SUAVE_VERSION);
+        std::printf("vinna %s\n", VINNA_VERSION);
         return 0;
     }
     if (command == "devices") {
-        return suave::list_devices();
+        return vinna::list_devices();
     }
-    if (command != "run" && command != "monitor") {
-        std::fprintf(stderr, "suave: unknown command '%s'. Try `suave help`.\n", command.c_str());
+    if (command != "run" && command != "monitor" && command != "restore") {
+        std::fprintf(stderr, "vinna: unknown command '%s'. Try `vinna help`.\n", command.c_str());
         return 2;
     }
 
-    suave::Config config;
+    vinna::Config config;
 
     // 1. Config file: --config <file>, or the default one if it exists.
     std::string config_path;
@@ -99,12 +100,12 @@ int main(int argc, char** argv) {
     }
     const bool explicit_config = !config_path.empty();
     if (!explicit_config) {
-        config_path = suave::default_config_path();
+        config_path = vinna::default_config_path();
     }
     if (explicit_config || file_exists(config_path)) {
-        const auto errors = suave::load_config_file(config, config_path);
+        const auto errors = vinna::load_config_file(config, config_path);
         for (const auto& e : errors) {
-            std::fprintf(stderr, "suave: %s\n", e.c_str());
+            std::fprintf(stderr, "vinna: %s\n", e.c_str());
         }
         if (!errors.empty()) {
             return 2;
@@ -115,7 +116,7 @@ int main(int argc, char** argv) {
     for (std::size_t i = 0; i < args.size(); ++i) {
         const std::string& arg = args[i];
         if (arg.rfind("--", 0) != 0) {
-            std::fprintf(stderr, "suave: unexpected argument '%s'\n", arg.c_str());
+            std::fprintf(stderr, "vinna: unexpected argument '%s'\n", arg.c_str());
             return 2;
         }
         std::string key = arg.substr(2);
@@ -124,11 +125,11 @@ int main(int argc, char** argv) {
         if (eq != std::string::npos) {
             value = key.substr(eq + 1);
             key = key.substr(0, eq);
-        } else if (suave::is_flag(key)) {
+        } else if (vinna::is_flag(key)) {
             value = "true";
         } else {
             if (i + 1 >= args.size()) {
-                std::fprintf(stderr, "suave: option --%s needs a value\n", key.c_str());
+                std::fprintf(stderr, "vinna: option --%s needs a value\n", key.c_str());
                 return 2;
             }
             value = args[++i];
@@ -136,15 +137,18 @@ int main(int argc, char** argv) {
         if (key == "config") {
             continue;  // Already handled.
         }
-        const std::string error = suave::apply_setting(config, key, value);
+        const std::string error = vinna::apply_setting(config, key, value);
         if (!error.empty()) {
-            std::fprintf(stderr, "suave: %s\n", error.c_str());
+            std::fprintf(stderr, "vinna: %s\n", error.c_str());
             return 2;
         }
     }
 
     if (command == "monitor") {
-        return suave::run_monitor(config);
+        return vinna::run_monitor(config);
     }
-    return suave::run_controller(config);
+    if (command == "restore") {
+        return vinna::restore_saved_volume(config);
+    }
+    return vinna::run_controller(config);
 }

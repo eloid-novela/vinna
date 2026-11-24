@@ -1,9 +1,9 @@
-#include "suave/level_meter.hpp"
+#include "vinna/level_meter.hpp"
 
 #include <cmath>
 #include <limits>
 
-namespace suave {
+namespace vinna {
 
 namespace {
 
@@ -120,4 +120,4 @@ void LoudnessWindow::reset() {
     total_frames_ = 0;
 }
 
-}  // namespace suave
+}  // namespace vinna

@@ -1,4 +1,4 @@
-set_project("suave")
+set_project("vinna")
 set_version("0.1.0")
 set_xmakever("2.8.5")
 
@@ -8,12 +8,13 @@ set_languages("cxx17")
 set_warnings("all")
 
 -- Platform independent logic: loudness meter, controller, config, parsers.
-target("suave_core")
+target("vinna_core")
     set_kind("static")
     add_files(
         "src/core/level_meter.cpp",
         "src/core/controller.cpp",
         "src/core/config.cpp",
+        "src/core/restore_state.cpp",
         "src/net/http_client.cpp",
         "src/actuators/pactl_parse.cpp"
     )
@@ -27,9 +28,9 @@ target("suave_core")
     end
 
 -- Command line tool.
-target("suave")
+target("vinna")
     set_kind("binary")
-    add_deps("suave_core")
+    add_deps("vinna_core")
     add_files(
         "src/app/main.cpp",
         "src/app/runner.cpp",
@@ -41,7 +42,7 @@ target("suave")
         "src/actuators/wasapi_actuator.cpp"
     )
     add_includedirs("third_party")
-    add_defines("SUAVE_VERSION=\"0.1.0\"")
+    add_defines("VINNA_VERSION=\"0.1.0\"")
     if is_plat("windows", "mingw") then
         add_syslinks("ole32")
         if is_plat("mingw") then
@@ -51,10 +52,10 @@ target("suave")
         add_syslinks("pthread", "dl", "m")
     end
 
--- Unit tests: `xmake build suave_tests && xmake run suave_tests`
-target("suave_tests")
+-- Unit tests: `xmake build vinna_tests && xmake run vinna_tests`
+target("vinna_tests")
     set_kind("binary")
     set_default(false)
-    add_deps("suave_core")
+    add_deps("vinna_core")
     add_files("tests/test_main.cpp")
     add_tests("default")

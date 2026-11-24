@@ -9,10 +9,11 @@
 #include <string>
 #include <thread>
 
-#include "suave/audio_capture.hpp"
-#include "suave/controller.hpp"
-#include "suave/level_meter.hpp"
-#include "suave/volume_actuator.hpp"
+#include "vinna/audio_capture.hpp"
+#include "vinna/controller.hpp"
+#include "vinna/level_meter.hpp"
+#include "vinna/restore_state.hpp"
+#include "vinna/volume_actuator.hpp"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -21,21 +22,34 @@
 #include <windows.h>
 #endif
 
-namespace suave {
+namespace vinna {
 
 namespace {
 
 using Clock = std::chrono::steady_clock;
 
 std::atomic<bool> g_stop{false};
+// Set once the main loop has finished cleaning up (volume restored).
+std::atomic<bool> g_finished{false};
+
+struct MarkFinishedOnExit {
+    ~MarkFinishedOnExit() { g_finished.store(true); }
+};
 
 void on_signal(int) { g_stop.store(true); }
 
 #ifdef _WIN32
-BOOL WINAPI on_console_event(DWORD) {
+BOOL WINAPI on_console_event(DWORD event) {
     g_stop.store(true);
-    // Give the main loop time to restore the volume before Windows kills us.
-    Sleep(1500);
+    if (event == CTRL_C_EVENT || event == CTRL_BREAK_EVENT) {
+        return TRUE;  // The process keeps running; the main loop cleans up.
+    }
+    // Window closed, log-off or shutdown: Windows ends the process as soon as
+    // this returns (and after ~5 s at the latest). Wait for the main loop to
+    // put the volume back first.
+    for (int i = 0; i < 90 && !g_finished.load(); ++i) {
+        Sleep(50);
+    }
     return TRUE;
 }
 #endif
@@ -49,6 +63,37 @@ void install_signal_handlers() {
 }
 
 double db_to_linear(double db) { return std::pow(10.0, db / 20.0); }
+
+// How far a read volume may be from what we wrote and still count as "ours".
+double volume_tolerance(const VolumeActuator& actuator, double written) {
+    return std::fmax(0.03 * written, 2.0 * actuator.resolution());
+}
+
+enum class RestoreResult { Restored, ChangedByUser, Unreachable };
+
+// Puts the user's volume (`reference`) back, unless the volume is no longer the
+// one vinna left (`written`), which means the user changed it in the meantime.
+// Reconnects if needed (the target may have been restarted).
+RestoreResult restore_volume(VolumeActuator& actuator, double reference, double written,
+                             bool connected) {
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        std::string error;
+        if ((!connected || attempt > 0) && !actuator.connect(error)) {
+            continue;
+        }
+        const auto current = actuator.read();
+        if (!current) {
+            continue;
+        }
+        if (std::fabs(*current - written) > volume_tolerance(actuator, written)) {
+            return RestoreResult::ChangedByUser;
+        }
+        if (actuator.write(reference)) {
+            return RestoreResult::Restored;
+        }
+    }
+    return RestoreResult::Unreachable;
+}
 
 double ms_since(Clock::time_point start, Clock::time_point now) {
     return std::chrono::duration<double, std::milli>(now - start).count();
@@ -64,7 +109,7 @@ std::string format_lufs(double lufs) {
 }
 
 // Remembers which gain was applied when, so that the measured loudness can be
-// corrected for suave's own volume changes (the capture hears the result).
+// corrected for vinna's own volume changes (the capture hears the result).
 class GainHistory {
 public:
     void push(Clock::time_point t, double linear_gain) {
@@ -113,7 +158,7 @@ std::unique_ptr<AudioCapture> open_capture(const Config& config) {
     auto capture = make_capture(config.device);
     std::string error;
     if (!capture->start(error)) {
-        std::fprintf(stderr, "suave: %s\n", error.c_str());
+        std::fprintf(stderr, "vinna: %s\n", error.c_str());
         return nullptr;
     }
     std::printf("Listening to: %s (%u Hz, %u ch)\n", capture->device_name().c_str(),
@@ -127,7 +172,7 @@ int list_devices() {
     std::string error;
     const auto devices = list_capture_devices(error);
     if (!error.empty()) {
-        std::fprintf(stderr, "suave: %s\n", error.c_str());
+        std::fprintf(stderr, "vinna: %s\n", error.c_str());
         return 1;
     }
     if (devices.empty()) {
@@ -144,6 +189,7 @@ int list_devices() {
 }
 
 int run_monitor(const Config& config) {
+    MarkFinishedOnExit finished;
     install_signal_handlers();
     auto capture = open_capture(config);
     if (!capture) {
@@ -182,12 +228,13 @@ int run_monitor(const Config& config) {
 }
 
 int run_controller(const Config& config) {
+    MarkFinishedOnExit finished;
     install_signal_handlers();
 
     std::string error;
     auto actuator = config.dry_run ? make_null_actuator() : make_actuator(config, error);
     if (!actuator) {
-        std::fprintf(stderr, "suave: %s\n", error.c_str());
+        std::fprintf(stderr, "vinna: %s\n", error.c_str());
         return 2;
     }
 
@@ -229,6 +276,43 @@ int run_controller(const Config& config) {
         std::printf("\r%-110s\r%s\n", "", message);
     };
 
+    // While the volume is lowered, keep the user's volume on disk so it can be
+    // put back even if vinna is killed (window closed, crash, log-off).
+    const std::string state_path = default_state_path();
+    const bool persist = !config.dry_run;
+    RestoreState saved_state;
+    bool state_on_disk = false;
+    auto sync_state = [&]() {
+        if (!persist) {
+            return;
+        }
+        if (have_reference && last_sent_db != 0.0) {
+            if (!state_on_disk || saved_state.reference != reference ||
+                saved_state.written != last_written) {
+                saved_state = {actuator->name(), reference, last_written};
+                state_on_disk = save_restore_state(state_path, saved_state);
+            }
+        } else if (state_on_disk) {
+            clear_restore_state(state_path);
+            state_on_disk = false;
+        }
+    };
+
+    // A previous run that was killed may have left the volume lowered.
+    if (persist) {
+        if (const auto previous = load_restore_state(state_path);
+            previous && previous->target == actuator->name() && previous->reference > 0.0) {
+            have_reference = true;
+            reference = previous->reference;
+            last_written = previous->written;
+            last_sent_db = 20.0 * std::log10(std::fmax(previous->written, 1e-6) / previous->reference);
+            saved_state = *previous;
+            state_on_disk = true;
+            note("A previous run left the volume lowered; your volume (%.0f%%) will be restored.",
+                 reference * 100.0);
+        }
+    }
+
     auto try_connect = [&](Clock::time_point now) {
         last_connect_try = now;
         std::string err;
@@ -249,9 +333,8 @@ int run_controller(const Config& config) {
         // The mixer may remember the volume we had lowered when the old stream
         // ended (PulseAudio's stream-restore does). If the new stream comes back
         // with exactly that value, keep the user's reference instead of the cut.
-        const double tolerance = std::fmax(0.03 * last_written, 2.0 * actuator->resolution());
         if (have_reference && last_sent_db != 0.0 &&
-            std::fabs(*volume - last_written) <= tolerance) {
+            std::fabs(*volume - last_written) <= volume_tolerance(*actuator, last_written)) {
             last_written = *volume;
             history.push(now, db_to_linear(last_sent_db));
             note("Reconnected. Keeping reference volume %.0f%%", reference * 100.0);
@@ -267,6 +350,7 @@ int run_controller(const Config& config) {
     };
 
     try_connect(Clock::now());
+    sync_state();
 
     while (!g_stop.load()) {
         std::this_thread::sleep_for(tick);
@@ -302,9 +386,8 @@ int run_controller(const Config& config) {
                     connected = false;
                     note("Lost the target; will reconnect.");
                 } else {
-                    const double tolerance =
-                        std::fmax(0.03 * last_written, 2.0 * actuator->resolution());
-                    if (std::fabs(*current - last_written) > tolerance) {
+                    if (std::fabs(*current - last_written) >
+                        volume_tolerance(*actuator, last_written)) {
                         reference = *current;
                         last_written = *current;
                         last_sent_db = 0.0;
@@ -335,6 +418,7 @@ int run_controller(const Config& config) {
                 }
             }
         }
+        sync_state();
 
         std::printf("\r%s LUFS %s  gain %5.1f dB  volume %3.0f%% %s",
                     format_lufs(source).c_str(),
@@ -344,13 +428,63 @@ int run_controller(const Config& config) {
     }
 
     std::printf("\n");
-    if (connected && last_sent_db != 0.0) {
-        if (actuator->write(reference)) {
+    if (have_reference && last_sent_db != 0.0) {
+        switch (restore_volume(*actuator, reference, last_written, connected)) {
+        case RestoreResult::Restored:
             std::printf("Volume restored to %.0f%%.\n", reference * 100.0);
+            last_sent_db = 0.0;
+            break;
+        case RestoreResult::ChangedByUser:
+            std::printf("The volume was changed outside vinna; leaving it as it is.\n");
+            last_sent_db = 0.0;
+            break;
+        case RestoreResult::Unreachable:
+            std::printf("Could not restore the volume now (%s is not reachable).\n"
+                        "It will be restored the next time vinna runs, or with `vinna restore`.\n",
+                        actuator->name().c_str());
+            break;
         }
+        sync_state();
     }
     capture->stop();
     return 0;
 }
 
-}  // namespace suave
+int restore_saved_volume(const Config& config) {
+    const std::string path = default_state_path();
+    const auto state = load_restore_state(path);
+    if (!state) {
+        std::printf("Nothing to restore: vinna did not leave the volume lowered.\n");
+        return 0;
+    }
+    std::string error;
+    auto actuator = make_actuator(config, error);
+    if (!actuator) {
+        std::fprintf(stderr, "vinna: %s\n", error.c_str());
+        return 2;
+    }
+    if (actuator->name() != state->target) {
+        std::fprintf(stderr,
+                     "vinna: the saved volume belongs to %s, but %s is selected.\n"
+                     "Pass the same --backend / --app as when vinna was running.\n",
+                     state->target.c_str(), actuator->name().c_str());
+        return 2;
+    }
+    switch (restore_volume(*actuator, state->reference, state->written, false)) {
+    case RestoreResult::Restored:
+        std::printf("Volume restored to %.0f%%.\n", state->reference * 100.0);
+        clear_restore_state(path);
+        return 0;
+    case RestoreResult::ChangedByUser:
+        std::printf("The volume was changed since vinna lowered it; leaving it as it is.\n");
+        clear_restore_state(path);
+        return 0;
+    case RestoreResult::Unreachable:
+        break;
+    }
+    std::fprintf(stderr, "vinna: could not reach %s. Is it running? Try again with it open.\n",
+                 actuator->name().c_str());
+    return 1;
+}
+
+}  // namespace vinna

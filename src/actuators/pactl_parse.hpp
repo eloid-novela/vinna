@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace suave::pulse {
+namespace vinna::pulse {
 
 // PulseAudio's "100 %" raw volume.
 constexpr double kVolumeNorm = 65536.0;
@@ -26,4 +26,4 @@ bool matches(const SinkInput& input, const std::string& app);
 double raw_to_linear(std::uint32_t raw);
 std::uint32_t linear_to_raw(double linear);
 
-}  // namespace suave::pulse
+}  // namespace vinna::pulse

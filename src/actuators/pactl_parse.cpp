@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <sstream>
 
-namespace suave::pulse {
+namespace vinna::pulse {
 
 namespace {
 
@@ -100,4 +100,4 @@ std::uint32_t linear_to_raw(double linear) {
     return static_cast<std::uint32_t>(std::lround(std::cbrt(linear) * kVolumeNorm));
 }
 
-}  // namespace suave::pulse
+}  // namespace vinna::pulse

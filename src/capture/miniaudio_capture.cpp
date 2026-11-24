@@ -7,9 +7,9 @@
 #include <vector>
 
 #include "miniaudio_config.h"
-#include "suave/audio_capture.hpp"
+#include "vinna/audio_capture.hpp"
 
-namespace suave {
+namespace vinna {
 
 namespace {
 
@@ -123,7 +123,7 @@ public:
                     }
                 }
                 if (!chosen) {
-                    error = "no audio device matches '" + filter_ + "' (see `suave devices`)";
+                    error = "no audio device matches '" + filter_ + "' (see `vinna devices`)";
                     return false;
                 }
             }
@@ -137,16 +137,16 @@ public:
                     }
                 }
                 if (!chosen) {
-                    error = "no capture device matches '" + filter_ + "' (see `suave devices`)";
+                    error = "no capture device matches '" + filter_ + "' (see `vinna devices`)";
                     return false;
                 }
             } else {
                 chosen = pick_default_monitor(*lists);
                 if (!chosen) {
                     error =
-                        "no monitor source found. suave needs PulseAudio or PipeWire "
+                        "no monitor source found. vinna needs PulseAudio or PipeWire "
                         "(pipewire-pulse) to listen to what is playing. "
-                        "Run `suave devices` and pass one with --device.";
+                        "Run `vinna devices` and pass one with --device.";
                     return false;
                 }
             }
@@ -273,4 +273,4 @@ std::vector<CaptureDeviceInfo> list_capture_devices(std::string& error) {
     return out;
 }
 
-}  // namespace suave
+}  // namespace vinna

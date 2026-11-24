@@ -7,9 +7,9 @@
 #include <cstdlib>
 
 #include "net/http_client.hpp"
-#include "suave/volume_actuator.hpp"
+#include "vinna/volume_actuator.hpp"
 
-namespace suave {
+namespace vinna {
 
 namespace {
 
@@ -97,4 +97,4 @@ std::unique_ptr<VolumeActuator> make_vlc_http_actuator(const Config& config) {
     return std::make_unique<VlcHttpActuator>(config);
 }
 
-}  // namespace suave
+}  // namespace vinna

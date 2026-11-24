@@ -7,9 +7,9 @@
 #include <vector>
 
 #include "pactl_parse.hpp"
-#include "suave/volume_actuator.hpp"
+#include "vinna/volume_actuator.hpp"
 
-namespace suave {
+namespace vinna {
 
 namespace {
 
@@ -91,6 +91,6 @@ std::unique_ptr<VolumeActuator> make_pulse_actuator(const Config& config) {
     return std::make_unique<PulseActuator>(config);
 }
 
-}  // namespace suave
+}  // namespace vinna
 
 #endif  // !_WIN32

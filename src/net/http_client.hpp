@@ -3,7 +3,7 @@
 #include <optional>
 #include <string>
 
-namespace suave::net {
+namespace vinna::net {
 
 struct HttpResponse {
     int status = 0;
@@ -18,4 +18,4 @@ std::optional<HttpResponse> http_get(const std::string& host, int port, const st
 
 std::string base64_encode(const std::string& input);
 
-}  // namespace suave::net
+}  // namespace vinna::net

@@ -1,6 +1,6 @@
-/* Shared miniaudio configuration: suave only needs low-level device I/O. */
-#ifndef SUAVE_MINIAUDIO_CONFIG_H
-#define SUAVE_MINIAUDIO_CONFIG_H
+/* Shared miniaudio configuration: vinna only needs low-level device I/O. */
+#ifndef VINNA_MINIAUDIO_CONFIG_H
+#define VINNA_MINIAUDIO_CONFIG_H
 
 #define MA_NO_DECODING
 #define MA_NO_ENCODING

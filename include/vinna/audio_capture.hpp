@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "suave/level_meter.hpp"
+#include "vinna/level_meter.hpp"
 
-namespace suave {
+namespace vinna {
 
 struct CaptureDeviceInfo {
     std::string name;
@@ -39,4 +39,4 @@ std::unique_ptr<AudioCapture> make_capture(const std::string& device_filter);
 // Lists devices that can be used with `--device`.
 std::vector<CaptureDeviceInfo> list_capture_devices(std::string& error);
 
-}  // namespace suave
+}  // namespace vinna

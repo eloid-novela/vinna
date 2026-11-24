@@ -1,14 +1,14 @@
-# suave configuration example.
+# vinna configuration example.
 #
 # Copy to:
-#   Linux:   ~/.config/suave/suave.toml
-#   Windows: %APPDATA%\suave\suave.toml
+#   Linux:   ~/.config/vinna/vinna.toml
+#   Windows: %APPDATA%\vinna\vinna.toml
 # Every option can also be passed on the command line (e.g. --threshold -22).
 
 # --- Detection ---------------------------------------------------------------
 
-# Loudness (LUFS) above which suave starts turning the volume down.
-# Lower = reacts earlier. Use `suave monitor` to see the values of your films.
+# Loudness (LUFS) above which vinna starts turning the volume down.
+# Lower = reacts earlier. Use `vinna monitor` to see the values of your films.
 threshold = -10
 
 # How strongly loud passages are pulled back (1 = not at all, 10+ = almost a limiter).
@@ -36,7 +36,7 @@ app = "vlc"
 # vlc_port = 8080
 # vlc_password = "change-me"
 
-# Capture device (part of a name from `suave devices`). Empty = what is playing.
+# Capture device (part of a name from `vinna devices`). Empty = what is playing.
 # device = "Monitor of"
 
 # --- Advanced ----------------------------------------------------------------

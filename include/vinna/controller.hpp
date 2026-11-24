@@ -1,9 +1,9 @@
 #pragma once
 
-namespace suave {
+namespace vinna {
 
 struct ControllerSettings {
-    // Loudness (LUFS, momentary) above which suave starts turning the volume down.
+    // Loudness (LUFS, momentary) above which vinna starts turning the volume down.
     double threshold_lufs = -20.0;
     // How strongly loud passages are pulled back towards the threshold.
     // 1 = no reduction, 4 = 4 dB over becomes 1 dB over, large values ~ limiter.
@@ -21,7 +21,7 @@ struct ControllerSettings {
     double gate_lufs = -55.0;
 };
 
-// Pure gain computer. Receives the loudness of the *source* (before suave's
+// Pure gain computer. Receives the loudness of the *source* (before vinna's
 // own volume change) and returns the gain to apply, in dB, always <= 0.
 // 0 dB means "the volume the user had set".
 class Controller {
@@ -47,4 +47,4 @@ private:
     double since_loud_ms_ = 1e12;
 };
 
-}  // namespace suave
+}  // namespace vinna

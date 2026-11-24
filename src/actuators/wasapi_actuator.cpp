@@ -18,9 +18,9 @@
 #include <string>
 #include <vector>
 
-#include "suave/volume_actuator.hpp"
+#include "vinna/volume_actuator.hpp"
 
-namespace suave {
+namespace vinna {
 
 namespace {
 
@@ -223,6 +223,6 @@ std::unique_ptr<VolumeActuator> make_wasapi_actuator(const Config& config) {
     return std::make_unique<WasapiActuator>(config);
 }
 
-}  // namespace suave
+}  // namespace vinna
 
 #endif  // _WIN32

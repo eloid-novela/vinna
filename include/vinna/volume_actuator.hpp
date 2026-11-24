@@ -4,11 +4,11 @@
 #include <optional>
 #include <string>
 
-#include "suave/config.hpp"
+#include "vinna/config.hpp"
 
-namespace suave {
+namespace vinna {
 
-// Something whose volume suave can read and change: VLC itself, or the
+// Something whose volume vinna can read and change: VLC itself, or the
 // per-application volume of the operating system mixer.
 //
 // Volumes are linear amplitude factors: 1.0 = 100 %, 0.5 = -6 dB.
@@ -48,4 +48,4 @@ std::unique_ptr<VolumeActuator> make_wasapi_actuator(const Config& config);
 std::unique_ptr<VolumeActuator> make_pulse_actuator(const Config& config);
 #endif
 
-}  // namespace suave
+}  // namespace vinna

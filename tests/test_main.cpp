@@ -8,9 +8,10 @@
 
 #include "actuators/pactl_parse.hpp"
 #include "net/http_client.hpp"
-#include "suave/config.hpp"
-#include "suave/controller.hpp"
-#include "suave/level_meter.hpp"
+#include "vinna/config.hpp"
+#include "vinna/controller.hpp"
+#include "vinna/level_meter.hpp"
+#include "vinna/restore_state.hpp"
 
 namespace {
 
@@ -40,8 +41,8 @@ constexpr double kPi = 3.14159265358979323846;
 double sine_loudness(double freq, double peak_dbfs, unsigned rate, double seconds) {
     const unsigned channels = 2;
     const double amp = std::pow(10.0, peak_dbfs / 20.0);
-    suave::KWeightingFilter filter(rate, channels);
-    suave::LoudnessWindow window(400.0);
+    vinna::KWeightingFilter filter(rate, channels);
+    vinna::LoudnessWindow window(400.0);
 
     const std::size_t block = rate / 100;  // 10 ms blocks.
     std::vector<float> buffer(block * channels);
@@ -72,8 +73,8 @@ void test_k_weighting_low_frequencies_count_less() {
 }
 
 void test_silence_is_minus_infinity() {
-    suave::KWeightingFilter filter(48000, 2);
-    suave::LoudnessWindow window;
+    vinna::KWeightingFilter filter(48000, 2);
+    vinna::LoudnessWindow window;
     std::vector<float> zeros(480 * 2, 0.0f);
     filter.process(zeros.data(), 480);
     window.push(filter.take(), 48000);
@@ -81,22 +82,22 @@ void test_silence_is_minus_infinity() {
 }
 
 void test_controller_target_gain() {
-    suave::ControllerSettings s;
+    vinna::ControllerSettings s;
     s.threshold_lufs = -20.0;
     s.ratio = 4.0;
     s.max_cut_db = 20.0;
-    suave::Controller c(s);
+    vinna::Controller c(s);
     CHECK_NEAR(c.target_gain_db(-25.0), 0.0, 1e-9);
     CHECK_NEAR(c.target_gain_db(-10.0), -7.5, 1e-9);  // 10 dB over, ratio 4 -> cut 7.5
     CHECK_NEAR(c.target_gain_db(+40.0), -20.0, 1e-9);  // Capped by max_cut.
 }
 
 void test_controller_attack_is_fast() {
-    suave::ControllerSettings s;
+    vinna::ControllerSettings s;
     s.threshold_lufs = -20.0;
     s.ratio = 4.0;
     s.attack_ms = 150.0;
-    suave::Controller c(s);
+    vinna::Controller c(s);
     double g = 0.0;
     for (int i = 0; i < 10; ++i) {  // 500 ms of loud input.
         g = c.update(-10.0, 50.0);
@@ -105,13 +106,13 @@ void test_controller_attack_is_fast() {
 }
 
 void test_controller_holds_then_releases_slowly() {
-    suave::ControllerSettings s;
+    vinna::ControllerSettings s;
     s.threshold_lufs = -20.0;
     s.ratio = 4.0;
     s.attack_ms = 100.0;
     s.hold_ms = 1000.0;
     s.release_ms = 2000.0;
-    suave::Controller c(s);
+    vinna::Controller c(s);
     for (int i = 0; i < 40; ++i) c.update(-10.0, 50.0);
     const double cut = c.gain_db();
     CHECK(cut < -7.0);
@@ -131,10 +132,10 @@ void test_controller_holds_then_releases_slowly() {
 }
 
 void test_controller_freezes_in_silence() {
-    suave::ControllerSettings s;
+    vinna::ControllerSettings s;
     s.gate_lufs = -55.0;
     s.hold_ms = 0.0;
-    suave::Controller c(s);
+    vinna::Controller c(s);
     for (int i = 0; i < 40; ++i) c.update(-5.0, 50.0);
     const double cut = c.gain_db();
     for (int i = 0; i < 400; ++i) c.update(-70.0, 50.0);
@@ -144,40 +145,40 @@ void test_controller_freezes_in_silence() {
 }
 
 void test_controller_never_boosts() {
-    suave::Controller c;
+    vinna::Controller c;
     for (int i = 0; i < 100; ++i) {
         CHECK(c.update(-40.0, 50.0) <= 0.0);
     }
 }
 
 void test_durations() {
-    CHECK_NEAR(*suave::parse_duration_ms("150"), 150.0, 1e-9);
-    CHECK_NEAR(*suave::parse_duration_ms("150ms"), 150.0, 1e-9);
-    CHECK_NEAR(*suave::parse_duration_ms("3s"), 3000.0, 1e-9);
-    CHECK_NEAR(*suave::parse_duration_ms("1.5S"), 1500.0, 1e-9);
-    CHECK_NEAR(*suave::parse_duration_ms("2m"), 120000.0, 1e-9);
-    CHECK(!suave::parse_duration_ms("fast"));
-    CHECK(!suave::parse_duration_ms("-1s"));
+    CHECK_NEAR(*vinna::parse_duration_ms("150"), 150.0, 1e-9);
+    CHECK_NEAR(*vinna::parse_duration_ms("150ms"), 150.0, 1e-9);
+    CHECK_NEAR(*vinna::parse_duration_ms("3s"), 3000.0, 1e-9);
+    CHECK_NEAR(*vinna::parse_duration_ms("1.5S"), 1500.0, 1e-9);
+    CHECK_NEAR(*vinna::parse_duration_ms("2m"), 120000.0, 1e-9);
+    CHECK(!vinna::parse_duration_ms("fast"));
+    CHECK(!vinna::parse_duration_ms("-1s"));
 }
 
 void test_apply_setting() {
-    suave::Config c;
-    CHECK(suave::apply_setting(c, "threshold", "-22").empty());
+    vinna::Config c;
+    CHECK(vinna::apply_setting(c, "threshold", "-22").empty());
     CHECK_NEAR(c.controller.threshold_lufs, -22.0, 1e-9);
-    CHECK(suave::apply_setting(c, "max-cut", "12").empty());
+    CHECK(vinna::apply_setting(c, "max-cut", "12").empty());
     CHECK_NEAR(c.controller.max_cut_db, 12.0, 1e-9);
-    CHECK(suave::apply_setting(c, "release", "\"4s\"").empty());
+    CHECK(vinna::apply_setting(c, "release", "\"4s\"").empty());
     CHECK_NEAR(c.controller.release_ms, 4000.0, 1e-9);
-    CHECK(suave::apply_setting(c, "backend", "VLC-HTTP").empty());
+    CHECK(vinna::apply_setting(c, "backend", "VLC-HTTP").empty());
     CHECK(c.backend == "vlc-http");
-    CHECK(suave::apply_setting(c, "vlc_port", "9090").empty());
+    CHECK(vinna::apply_setting(c, "vlc_port", "9090").empty());
     CHECK(c.vlc_port == 9090);
-    CHECK(suave::apply_setting(c, "dry-run", "true").empty());
+    CHECK(vinna::apply_setting(c, "dry-run", "true").empty());
     CHECK(c.dry_run);
-    CHECK(!suave::apply_setting(c, "threshold", "loud").empty());
-    CHECK(!suave::apply_setting(c, "ratio", "0.5").empty());
-    CHECK(!suave::apply_setting(c, "backend", "alsa").empty());
-    CHECK(!suave::apply_setting(c, "nonsense", "1").empty());
+    CHECK(!vinna::apply_setting(c, "threshold", "loud").empty());
+    CHECK(!vinna::apply_setting(c, "ratio", "0.5").empty());
+    CHECK(!vinna::apply_setting(c, "backend", "alsa").empty());
+    CHECK(!vinna::apply_setting(c, "nonsense", "1").empty());
 }
 
 void test_pactl_parsing() {
@@ -205,32 +206,47 @@ Sink Input #15
 		application.name = "Firefox"
 		application.process.binary = "firefox"
 )PACTL";
-    const auto inputs = suave::pulse::parse_sink_inputs(sample);
+    const auto inputs = vinna::pulse::parse_sink_inputs(sample);
     CHECK(inputs.size() == 2);
     if (inputs.size() == 2) {
         CHECK(inputs[0].index == 12);
         CHECK(inputs[0].raw_volume == 52429);
         CHECK(inputs[0].process_binary == "vlc");
-        CHECK(suave::pulse::matches(inputs[0], "VLC"));
-        CHECK(!suave::pulse::matches(inputs[1], "vlc"));
+        CHECK(vinna::pulse::matches(inputs[0], "VLC"));
+        CHECK(!vinna::pulse::matches(inputs[1], "vlc"));
         CHECK(inputs[1].index == 15);
         CHECK(inputs[1].raw_volume == 65536);
     }
 }
 
 void test_pulse_volume_curve() {
-    CHECK_NEAR(suave::pulse::raw_to_linear(65536), 1.0, 1e-9);
-    CHECK(suave::pulse::linear_to_raw(1.0) == 65536);
-    CHECK(suave::pulse::linear_to_raw(0.0) == 0);
-    CHECK_NEAR(suave::pulse::raw_to_linear(suave::pulse::linear_to_raw(0.5)), 0.5, 1e-3);
+    CHECK_NEAR(vinna::pulse::raw_to_linear(65536), 1.0, 1e-9);
+    CHECK(vinna::pulse::linear_to_raw(1.0) == 65536);
+    CHECK(vinna::pulse::linear_to_raw(0.0) == 0);
+    CHECK_NEAR(vinna::pulse::raw_to_linear(vinna::pulse::linear_to_raw(0.5)), 0.5, 1e-3);
 }
 
 void test_base64() {
-    CHECK(suave::net::base64_encode("") == "");
-    CHECK(suave::net::base64_encode("f") == "Zg==");
-    CHECK(suave::net::base64_encode("fo") == "Zm8=");
-    CHECK(suave::net::base64_encode("foo") == "Zm9v");
-    CHECK(suave::net::base64_encode(":secret") == "OnNlY3JldA==");
+    CHECK(vinna::net::base64_encode("") == "");
+    CHECK(vinna::net::base64_encode("f") == "Zg==");
+    CHECK(vinna::net::base64_encode("fo") == "Zm8=");
+    CHECK(vinna::net::base64_encode("foo") == "Zm9v");
+    CHECK(vinna::net::base64_encode(":secret") == "OnNlY3JldA==");
+}
+
+void test_restore_state() {
+    const vinna::RestoreState state{"wasapi (app: vlc)", 0.8, 0.25};
+    const auto parsed = vinna::parse_restore_state(vinna::format_restore_state(state));
+    CHECK(parsed.has_value());
+    if (parsed) {
+        CHECK(parsed->target == "wasapi (app: vlc)");
+        CHECK_NEAR(parsed->reference, 0.8, 1e-9);
+        CHECK_NEAR(parsed->written, 0.25, 1e-9);
+    }
+    CHECK(!vinna::parse_restore_state("").has_value());
+    CHECK(!vinna::parse_restore_state("target = x\nreference = 1\n").has_value());
+    CHECK(!vinna::parse_restore_state("target = x\nreference = abc\nwritten = 1\n").has_value());
+    CHECK(!vinna::parse_restore_state("target = x\nreference = -1\nwritten = 1\n").has_value());
 }
 
 }  // namespace
@@ -250,6 +266,7 @@ int main() {
         {"pactl parsing", test_pactl_parsing},
         {"pulse volume curve", test_pulse_volume_curve},
         {"base64", test_base64},
+        {"restore state", test_restore_state},
     };
     for (const auto& [name, fn] : tests) {
         const int before = g_failures;

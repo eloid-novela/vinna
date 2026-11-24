@@ -1,4 +1,4 @@
-#include "suave/config.hpp"
+#include "vinna/config.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -6,7 +6,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace suave {
+namespace vinna {
 
 namespace {
 
@@ -236,17 +236,17 @@ std::vector<std::string> load_config_file(Config& config, const std::string& pat
 std::string default_config_path() {
 #ifdef _WIN32
     if (const char* appdata = std::getenv("APPDATA")) {
-        return std::string(appdata) + "\\suave\\suave.toml";
+        return std::string(appdata) + "\\vinna\\vinna.toml";
     }
-    return "suave.toml";
+    return "vinna.toml";
 #else
     if (const char* xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg) {
-        return std::string(xdg) + "/suave/suave.toml";
+        return std::string(xdg) + "/vinna/vinna.toml";
     }
     if (const char* home = std::getenv("HOME")) {
-        return std::string(home) + "/.config/suave/suave.toml";
+        return std::string(home) + "/.config/vinna/vinna.toml";
     }
-    return "suave.toml";
+    return "vinna.toml";
 #endif
 }
 
@@ -268,4 +268,4 @@ std::string describe(const Config& config) {
     return out.str();
 }
 
-}  // namespace suave
+}  // namespace vinna

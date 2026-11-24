@@ -1,9 +1,9 @@
-#include "suave/controller.hpp"
+#include "vinna/controller.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-namespace suave {
+namespace vinna {
 
 namespace {
 
@@ -72,4 +72,4 @@ void Controller::reset() {
     since_loud_ms_ = 1e12;
 }
 
-}  // namespace suave
+}  // namespace vinna

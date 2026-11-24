@@ -21,10 +21,10 @@ jobs:
         run: ctest --test-dir build -C Release --output-on-failure
       - uses: actions/upload-artifact@v4
         with:
-          name: suave-${{ matrix.os }}
+          name: vinna-${{ matrix.os }}
           path: |
-            build/suave
-            build/Release/suave.exe
+            build/vinna
+            build/Release/vinna.exe
 
   xmake:
     runs-on: ubuntu-latest
@@ -36,4 +36,4 @@ jobs:
       - name: Build
         run: xmake -y
       - name: Test
-        run: xmake build -y suave_tests && xmake run suave_tests
+        run: xmake build -y vinna_tests && xmake run vinna_tests

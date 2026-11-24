@@ -4,7 +4,7 @@
 #include <deque>
 #include <vector>
 
-namespace suave {
+namespace vinna {
 
 // Second-order IIR section (Direct Form I).
 struct Biquad {
@@ -79,4 +79,4 @@ private:
     unsigned sample_rate_ = 48000;
 };
 
-}  // namespace suave
+}  // namespace vinna

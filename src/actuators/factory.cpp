@@ -1,6 +1,6 @@
-#include "suave/volume_actuator.hpp"
+#include "vinna/volume_actuator.hpp"
 
-namespace suave {
+namespace vinna {
 
 namespace {
 
@@ -68,4 +68,4 @@ std::unique_ptr<VolumeActuator> make_actuator(const Config& config, std::string&
     return nullptr;
 }
 
-}  // namespace suave
+}  // namespace vinna

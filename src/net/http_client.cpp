@@ -22,7 +22,7 @@ using socket_t = int;
 constexpr socket_t kInvalidSocket = -1;
 #endif
 
-namespace suave::net {
+namespace vinna::net {
 
 namespace {
 
@@ -192,4 +192,4 @@ std::optional<HttpResponse> http_get(const std::string& host, int port, const st
     return response;
 }
 
-}  // namespace suave::net
+}  // namespace vinna::net

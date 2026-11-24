@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "suave/controller.hpp"
+#include "vinna/controller.hpp"
 
-namespace suave {
+namespace vinna {
 
 struct Config {
     ControllerSettings controller;
@@ -23,7 +23,7 @@ struct Config {
     std::string vlc_password;
 
     // Capture device: empty = system loopback / default monitor.
-    // Otherwise a case-insensitive substring of the device name (see `suave devices`).
+    // Otherwise a case-insensitive substring of the device name (see `vinna devices`).
     std::string device;
 
     // Loudness measurement window.
@@ -60,4 +60,4 @@ std::string default_config_path();
 // Human-readable dump of the effective configuration.
 std::string describe(const Config& config);
 
-}  // namespace suave
+}  // namespace vinna

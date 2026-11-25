@@ -150,6 +150,30 @@ ctest --test-dir build --output-on-failure
 On Windows, both work with Visual Studio (MSVC) or MinGW. MinGW builds are linked
 statically, so `vinna.exe` runs without extra DLLs.
 
+### Docker (Linux)
+
+The image builds vinna and runs the unit tests, so `docker build .` also works as
+a quick check on any machine:
+
+```bash
+docker build -t vinna .
+docker run --rm vinna help
+```
+
+To run vinna from a container on a Linux desktop (PulseAudio or PipeWire), use
+Compose. It shares the host's audio socket with the container and uses the host
+network so the `vlc-http` backend can reach VLC on `127.0.0.1`:
+
+```bash
+cp config/vinna.example.toml config/vinna.toml   # then adjust it
+docker compose up --build
+```
+
+Stopping the container (Ctrl+C or `docker compose down`) restores the volume.
+The container runs as UID 1000 by default; if your user has another UID, run
+`UID=$(id -u) docker compose up --build`. A container cannot reach Windows or
+macOS audio, so on those systems run vinna directly.
+
 ## Project layout
 
 ```

@@ -1,0 +1,35 @@
+# Runs vinna on a Linux desktop (PulseAudio or PipeWire).
+#
+#   cp config/vinna.example.toml config/vinna.toml   # then adjust it
+#   docker compose up --build
+#
+# Stopping the container (Ctrl+C / docker compose down) restores the volume.
+# Not for Windows or macOS: the container cannot reach their audio system.
+
+services:
+  vinna:
+    build:
+      context: .
+      args:
+        UID: ${UID:-1000}
+    image: vinna
+    command: ["run"]
+    # Lets vinna reach VLC's web interface on 127.0.0.1 (vlc-http backend).
+    network_mode: host
+    # Live status line and immediate log output.
+    tty: true
+    init: true
+    environment:
+      PULSE_SERVER: unix:/run/pulse/native
+    volumes:
+      # The host's PulseAudio / PipeWire socket: capture and volume control.
+      - ${XDG_RUNTIME_DIR:-/run/user/1000}/pulse/native:/run/pulse/native
+      # Keeps restore.state, so a volume left lowered is put back after a crash.
+      - vinna-state:/home/vinna/.config/vinna
+      # Your settings.
+      - ./config/vinna.toml:/home/vinna/.config/vinna/vinna.toml:ro
+      # Only needed with classic PulseAudio (not PipeWire), which checks a cookie:
+      # - ${HOME}/.config/pulse/cookie:/home/vinna/.config/pulse/cookie:ro
+
+volumes:
+  vinna-state:

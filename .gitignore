@@ -10,3 +10,5 @@ compile_commands.json
 *.o
 *.obj
 suave — Relatório técnico do projeto.pdf
+# Local settings (copy from config/vinna.example.toml)
+config/vinna.toml

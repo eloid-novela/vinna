@@ -1,0 +1,13 @@
+.git
+.github
+build/
+build-*/
+out/
+.xmake/
+.cache/
+.vscode/
+.idea/
+*.pdf
+config/
+compose.yaml
+Dockerfile
